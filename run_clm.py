@@ -120,6 +120,30 @@ class ModelArguments:
             "with private models)."
         },
     )
+    train_slit_1: bool = field(
+        default=True,
+        metadata={
+            "help": "Set trainable for layers from 0-4"
+        },
+    )
+    train_slit_2: bool = field(
+        default=True,
+        metadata={
+            "help": "Set trainable for layers from 4-8"
+        },
+    )
+    train_slit_3: bool = field(
+        default=True,
+        metadata={
+            "help": "Set trainable for layers from 8-12"
+        },
+    )
+    train_slit_wte_wpe: bool = field(
+        default=True,
+        metadata={
+            "help": "Set trainable for layers model.transformer.wte, model.transformer.wpe, model.transformer.ln_f"
+        },
+    )
 
     def __post_init__(self):
         if self.config_overrides is not None and (self.config_name is not None or self.model_name_or_path is not None):
@@ -402,7 +426,9 @@ def main():
 
 
     ByteLevelBPE_tokenizer_pt_rep = "./ByteLevelBPE_tokenizer_pt_rep/"
+    neet_to_adjust_weights = False
     if not os.path.isdir(ByteLevelBPE_tokenizer_pt_rep):
+        neet_to_adjust_weights = True
 
         paths = [data_args.train_file]
         pretrained_weights = 'gpt2'
@@ -441,6 +467,28 @@ def main():
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     logging.info("-Tokenizer: Loading custom")
     tokenizer = GPT2TokenizerFast.from_pretrained(
         ByteLevelBPE_tokenizer_pt_rep, 
@@ -452,6 +500,30 @@ def main():
     logging.info("-Tokenizer: Loading complete")
 
 
+
+
+
+
+
+
+
+                                                            ########
+########               ########                             ########                    #######
+#########             #########                             ########                    #######
+##########           ##########                             ########                    #######
+###########         ###########                             #######                     #######
+############       ############   ###########       ###############     ############     ######
+#############     ############# ###############   #################   ################   ######
+##############   ############################### ##################  ################### ######
+######## ###### ###### ############################################ ########     ####### ######
+########  ###########  ##############     ##############    ####### #################### ######
+########   #########   ##############     #############     ####### ###################  ######
+########    #######    ##############     #############     ####### ##################   ######
+########     #####     ##############     #############     ####### #########            ######
+########               #######################################################          ########
+########               ######################### ################### #################  ########
+########               ######## ###############   ##################  ################  ########
+########               ########   ###########      #########   #####    ##############  ########
 
 
 
@@ -474,143 +546,152 @@ def main():
 
 
 
-    tokenizer_en = GPT2TokenizerFast.from_pretrained('gpt2')
-    tokenizer_en.pad_token = tokenizer_en.eos_token
-
-    old_vocab_size = tokenizer_en.vocab_size
-    new_vocab_size = tokenizer.vocab_size
-
-    logging.info("Old vocab", old_vocab_size)
-    logging.info("New vocab", new_vocab_size)
-    logging.info("Diff", old_vocab_size-new_vocab_size)
-
-    tokenizer_fastai_vocab_pt = tokenizer.get_vocab() 
-    tokenizer_fastai_vocab_ls_pt = [k for k, v in sorted(tokenizer_fastai_vocab_pt.items(), key=lambda item: item[1])]
-    logging.info(len(tokenizer_fastai_vocab_ls_pt),tokenizer_fastai_vocab_ls_pt[:10])
 
 
 
-    tens_a = model.transformer.wte.weight
-    tens_b = model.lm_head.weight
-    logging.info(model.transformer.wte.weight,model.lm_head.weight,torch.all(tens_a.eq(tens_b)))
 
 
 
-    # Get weights of the old wte
-    old_wgts = model.transformer.get_input_embeddings().weight.clone().detach()
-
-    # Get the mean embedding vetor of the old wte
-    wgts_m = old_wgts.mean(0)
-
-    # Initialize vocab size and weights of the new wte
-    new_vocab_size = tokenizer.vocab_size
-    new_wgts = old_wgts.new_zeros(new_vocab_size,old_wgts.size(1))
-
-    old_vocab = tokenizer_en.get_vocab()
-    new_vocab = tokenizer.get_vocab()
-    same_tokens_list = list()
-    different_tokens_list = list()
 
 
-    for w,idx_new in new_vocab.items():
-        idx_old = old_vocab.get(w, -1)
-        if idx_old>=0:
-            new_wgts[idx_new] = old_wgts[idx_old]
-            same_tokens_list.append((w,idx_new))
+    if neet_to_adjust_weights:
+        tokenizer_en = GPT2TokenizerFast.from_pretrained('gpt2')
+        tokenizer_en.pad_token = tokenizer_en.eos_token
+
+        old_vocab_size = tokenizer_en.vocab_size
+        new_vocab_size = tokenizer.vocab_size
+
+        logging.info("Old vocab", old_vocab_size)
+        logging.info("New vocab", new_vocab_size)
+        logging.info("Diff", old_vocab_size-new_vocab_size)
+
+        tokenizer_fastai_vocab_pt = tokenizer.get_vocab() 
+        tokenizer_fastai_vocab_ls_pt = [k for k, v in sorted(tokenizer_fastai_vocab_pt.items(), key=lambda item: item[1])]
+        logging.info(len(tokenizer_fastai_vocab_ls_pt),tokenizer_fastai_vocab_ls_pt[:10])
+
+
+
+        tens_a = model.transformer.wte.weight
+        tens_b = model.lm_head.weight
+        logging.info(model.transformer.wte.weight,model.lm_head.weight,torch.all(tens_a.eq(tens_b)))
+
+
+
+        # Get weights of the old wte
+        old_wgts = model.transformer.get_input_embeddings().weight.clone().detach()
+
+        # Get the mean embedding vetor of the old wte
+        wgts_m = old_wgts.mean(0)
+
+        # Initialize vocab size and weights of the new wte
+        new_vocab_size = tokenizer.vocab_size
+        new_wgts = old_wgts.new_zeros(new_vocab_size,old_wgts.size(1))
+
+        old_vocab = tokenizer_en.get_vocab()
+        new_vocab = tokenizer.get_vocab()
+        same_tokens_list = list()
+        different_tokens_list = list()
+
+
+        for w,idx_new in new_vocab.items():
+            idx_old = old_vocab.get(w, -1)
+            if idx_old>=0:
+                new_wgts[idx_new] = old_wgts[idx_old]
+                same_tokens_list.append((w,idx_new))
+            else:
+                new_wgts[idx_new] = wgts_m
+                different_tokens_list.append((w,idx_new))
+
+
+        # setup in model the new wte
+        new_wte = torch.nn.Embedding(new_vocab_size,old_wgts.size(1))
+        #new_wte.weight.data.normal_(mean=0.0, std=model.config.initializer_range)
+        new_wte.weight.data = new_wgts
+        model.transformer.set_input_embeddings(new_wte)
+
+        logging.info(f'Portuguese wte matrix setup done!\n\nWe kept {len(same_tokens_list)} embeddings vectors from the English one.\nWe did not kept {len(different_tokens_list)} embeddings vectors from the English one (instead, we used the old wte mean vector).\n')
+
+
+        # Check identical tokens between the 2 vocabs
+        num = 15
+        logging.info(f'{num} first tokens IN common between the 2 vocabs:\n{same_tokens_list[:num]}\n')
+        logging.info(f'{num} first tokens NOT in common between the 2 vocabs:\n{different_tokens_list[:num]}')
+
+        path_save_new_wte = "./new_wte_wgts/"
+
+
+        if os.path.isdir(path_save_new_wte):
+            shutil.rmtree(path_save_new_wte)
+        os.mkdir(path_save_new_wte)
+
+        # save new_wgts
+        torch.save(new_wgts, path_save_new_wte+'new_wte_wgts.pt')
+        # save same_tokens_list and different_tokens_list
+        torch.save(same_tokens_list, path_save_new_wte+'same_tokens_list.pt')
+        torch.save(different_tokens_list, path_save_new_wte+'different_tokens_list.pt')
+
+
+        new_wgts = torch.load(path_save_new_wte+'new_wte_wgts.pt')
+        # load same_tokens_list and different_tokens_list
+        same_tokens_list = torch.load(path_save_new_wte+'same_tokens_list.pt')
+        different_tokens_list = torch.load(path_save_new_wte+'different_tokens_list.pt')
+
+
+
+        old_vocab = tokenizer_en.get_vocab()
+        #new_vocab = tokenizer_fastai_pt.tokenizer.get_vocab()
+        count = 0
+
+        for (tok,idx) in same_tokens_list:
+            w = tokenizer.convert_ids_to_tokens(idx)
+            tens_a = new_wgts[idx]
+            idx_old = old_vocab.get(w, -1)
+            if idx_old >= 0:
+                tens_b = old_wgts[idx_old]
+            else:
+                tens_b = wgts_m
+            if ( torch.all(tens_a.eq(tens_b)) == False) or (w != tok):
+                logging.info('idx,tok:',idx,tok)
+                logging.info('idx,w:',idx,w)
+                logging.info('idx_old:',idx_old)
+                logging.info('identical?',torch.all(tens_a.eq(tens_b)))
+                count += 1
+
+        if count == 0:
+            logging.info(f'Great! All the embeddings vetors of the {len(same_tokens_list)} common tokens are the ones of the old wte matrix :-)\n')
         else:
-            new_wgts[idx_new] = wgts_m
-            different_tokens_list.append((w,idx_new))
-
-
-    # setup in model the new wte
-    new_wte = torch.nn.Embedding(new_vocab_size,old_wgts.size(1))
-    #new_wte.weight.data.normal_(mean=0.0, std=model.config.initializer_range)
-    new_wte.weight.data = new_wgts
-    model.transformer.set_input_embeddings(new_wte)
-
-    logging.info(f'Portuguese wte matrix setup done!\n\nWe kept {len(same_tokens_list)} embeddings vectors from the English one.\nWe did not kept {len(different_tokens_list)} embeddings vectors from the English one (instead, we used the old wte mean vector).\n')
-
-
-    # Check identical tokens between the 2 vocabs               
-    num = 15
-    logging.info(f'{num} first tokens IN common between the 2 vocabs:\n{same_tokens_list[:num]}\n')
-    logging.info(f'{num} first tokens NOT in common between the 2 vocabs:\n{different_tokens_list[:num]}')
-
-    path_save_new_wte = "./new_wte_wgts/"
-
-
-    if os.path.isdir(path_save_new_wte):
-        shutil.rmtree(path_save_new_wte)
-    os.mkdir(path_save_new_wte)
-
-    # save new_wgts
-    torch.save(new_wgts, path_save_new_wte+'new_wte_wgts.pt')
-    # save same_tokens_list and different_tokens_list
-    torch.save(same_tokens_list, path_save_new_wte+'same_tokens_list.pt')
-    torch.save(different_tokens_list, path_save_new_wte+'different_tokens_list.pt')
-
-
-    new_wgts = torch.load(path_save_new_wte+'new_wte_wgts.pt')
-    # load same_tokens_list and different_tokens_list
-    same_tokens_list = torch.load(path_save_new_wte+'same_tokens_list.pt')
-    different_tokens_list = torch.load(path_save_new_wte+'different_tokens_list.pt')
+            raise Exception("Something is really wrong 1", count)
 
 
 
-    old_vocab = tokenizer_en.get_vocab()
-    #new_vocab = tokenizer_fastai_pt.tokenizer.get_vocab()
-    count = 0
+        count = 0
+        for (tok,idx) in different_tokens_list:
+            w = tokenizer.convert_ids_to_tokens(idx)
+            tens_a = new_wgts[idx]
+            idx_old = old_vocab.get(w, -1)
+            if idx_old >= 0:
+                tens_b = old_wgts[idx_old]
+            else:
+                tens_b = wgts_m
+            if ( torch.all(tens_a.eq(tens_b)) == False) or (w != tok):
+                logging.info('idx,tok:',idx,tok)
+                logging.info('idx,w:',idx,w)
+                logging.info('idx_old:',idx_old)
+                logging.info('identical?',torch.all(tens_a.eq(tens_b)))
+                count += 1
 
-    for (tok,idx) in same_tokens_list:
-        w = tokenizer.convert_ids_to_tokens(idx)
-        tens_a = new_wgts[idx]
-        idx_old = old_vocab.get(w, -1)
-        if idx_old >= 0:
-            tens_b = old_wgts[idx_old]
+        if count == 0:
+            logging.info(f'Great! All the embeddings vetors of the {len(different_tokens_list)} NOT common tokens are the old wte mean vetor :-)\n')
         else:
-            tens_b = wgts_m
-        if ( torch.all(tens_a.eq(tens_b)) == False) or (w != tok):
-            logging.info('idx,tok:',idx,tok)
-            logging.info('idx,w:',idx,w)
-            logging.info('idx_old:',idx_old)
-            logging.info('identical?',torch.all(tens_a.eq(tens_b)))
-            count += 1
+            raise Exception("Something is really wrong 2", count)
 
-    if count == 0:
-        logging.info(f'Great! All the embeddings vetors of the {len(same_tokens_list)} common tokens are the ones of the old wte matrix :-)\n')
-    else:
-        raise Exception("Something is really wrong 1", count)
+        model.lm_head.weight = model.transformer.wte.weight
+        model.lm_head
 
-
-
-    count = 0
-    for (tok,idx) in different_tokens_list:
-        w = tokenizer.convert_ids_to_tokens(idx)
-        tens_a = new_wgts[idx]
-        idx_old = old_vocab.get(w, -1)
-        if idx_old >= 0:
-            tens_b = old_wgts[idx_old]
-        else:
-            tens_b = wgts_m
-        if ( torch.all(tens_a.eq(tens_b)) == False) or (w != tok):
-            logging.info('idx,tok:',idx,tok)
-            logging.info('idx,w:',idx,w)
-            logging.info('idx_old:',idx_old)
-            logging.info('identical?',torch.all(tens_a.eq(tens_b)))
-            count += 1
-
-    if count == 0:
-        logging.info(f'Great! All the embeddings vetors of the {len(different_tokens_list)} NOT common tokens are the old wte mean vetor :-)\n')
-    else:
-        raise Exception("Something is really wrong 2", count)
-
-    model.lm_head.weight = model.transformer.wte.weight
-    model.lm_head
-
-    tens_a = model.transformer.wte.weight
-    tens_b = model.lm_head.weight
-    logging.info("This is our new model :)")
-    logging.info(model.transformer.wte.weight,model.lm_head.weight,torch.all(tens_a.eq(tens_b)))
+        tens_a = model.transformer.wte.weight
+        tens_b = model.lm_head.weight
+        logging.info("This is our new model :)")
+        logging.info(model.transformer.wte.weight,model.lm_head.weight,torch.all(tens_a.eq(tens_b)))
 
 
 
@@ -663,7 +744,7 @@ def main():
 
     def tokenize_function(examples):
         with CaptureLogger(tok_logger) as cl:
-            output = tokenizer(examples[text_column_name])
+            output = tokenizer(examples[text_column_name], truncation=True, padding="max_length", max_length=1024)
         # clm input could be much much longer than block_size
         if "Token indices sequence length is longer than the" in cl.out:
             tok_logger.warning(
@@ -808,71 +889,12 @@ def main():
 
 
 
-        logging.info("Starting training 1")
+
+        logging.info("Starting training")
+        logging.info("Learning rate:", training_args.learning_rate)
+        logging.info("output_dir:", training_args.output_dir)
 
 
-        training_args.logging_first_step = True
-        training_args.learning_rate = 2e-3
-        training_args.output_dir = "./tmp1/"
-
-        optimizer = transformers.optimization.Adafactor(model.parameters(), lr=training_args.learning_rate, scale_parameter=False, relative_step=False, warmup_init=False)
-        lr_scheduler = transformers.optimization.AdafactorSchedule(optimizer)
-
-        logging.info("-Training args", training_args)
-        trainer = Trainer(
-            model=model,
-            args=training_args,
-            train_dataset=train_dataset if training_args.do_train else None,
-            eval_dataset=eval_dataset if training_args.do_eval else None,
-            tokenizer=tokenizer,
-            # Data collator will default to DataCollatorWithPadding, so we change it.
-            data_collator=default_data_collator,
-            optimizers=(optimizer, lr_scheduler)
-        )
-
-        set_all_layer_status_model(divs, False)
-        freeze_group_model(divs, 0, False)
-        freeze_group_model(divs, 1, False)
-        freeze_group_model(divs, 2, False)
-        freeze_group_model(divs, 3, True)
-
-        train_result = trainer.train()
-        trainer.save_model()
-
-        metrics = train_result.metrics
-
-        max_train_samples = (
-            data_args.max_train_samples if data_args.max_train_samples is not None else len(train_dataset)
-        )
-        metrics["train_samples"] = min(max_train_samples, len(train_dataset))
-
-        trainer.log_metrics("train", metrics)
-        trainer.save_metrics("train", metrics)
-        trainer.save_state()
-
-
-        # Evaluation
-        if training_args.do_eval:
-            logger.info("*** Evaluate ***")
-
-            metrics = trainer.evaluate()
-
-            max_eval_samples = data_args.max_eval_samples if data_args.max_eval_samples is not None else len(eval_dataset)
-            metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
-            try:
-                perplexity = math.exp(metrics["eval_loss"])
-            except OverflowError:
-                perplexity = float("inf")
-            metrics["perplexity"] = perplexity
-
-            trainer.log_metrics("eval", metrics)
-            trainer.save_metrics("eval", metrics)
-
-        logging.info("Starting training 2")
-
-
-        training_args.learning_rate = 1e-3/(2.6**4)
-        training_args.output_dir = "./tmp2/"
 
         optimizer = transformers.optimization.Adafactor(model.parameters(), lr=training_args.learning_rate, scale_parameter=False, relative_step=False, warmup_init=False)
         lr_scheduler = transformers.optimization.AdafactorSchedule(optimizer)
@@ -890,10 +912,10 @@ def main():
         )
 
         set_all_layer_status_model(divs, False)
-        freeze_group_model(divs, 0, False)
-        freeze_group_model(divs, 1, False)
-        freeze_group_model(divs, 2, True)
-        freeze_group_model(divs, 3, True)
+        freeze_group_model(divs, 0, model_args.train_slit_1)
+        freeze_group_model(divs, 1, model_args.train_slit_2)
+        freeze_group_model(divs, 2, model_args.train_slit_3)
+        freeze_group_model(divs, 3, model_args.train_slit_wte_wpe)
 
         train_result = trainer.train()
         trainer.save_model()
@@ -928,123 +950,13 @@ def main():
             trainer.save_metrics("eval", metrics)
 
 
-        logging.info("Starting training 3")
-
-
-        training_args.learning_rate = 5e-4/(2.6**4)
-        training_args.output_dir = "./tmp3/"
-
-        optimizer = transformers.optimization.Adafactor(model.parameters(), lr=training_args.learning_rate, scale_parameter=False, relative_step=False, warmup_init=False)
-        lr_scheduler = transformers.optimization.AdafactorSchedule(optimizer)
-
-        logging.info("-Training args", training_args)
-        trainer = Trainer(
-            model=model,
-            args=training_args,
-            train_dataset=train_dataset if training_args.do_train else None,
-            eval_dataset=eval_dataset if training_args.do_eval else None,
-            tokenizer=tokenizer,
-            # Data collator will default to DataCollatorWithPadding, so we change it.
-            data_collator=default_data_collator,
-            optimizers=(optimizer, lr_scheduler)
-        )
-
-        set_all_layer_status_model(divs, False)
-        freeze_group_model(divs, 0, False)
-        freeze_group_model(divs, 1, True)
-        freeze_group_model(divs, 2, True)
-        freeze_group_model(divs, 3, True)
-
-        train_result = trainer.train()
-        trainer.save_model()
-
-        metrics = train_result.metrics
-
-        max_train_samples = (
-            data_args.max_train_samples if data_args.max_train_samples is not None else len(train_dataset)
-        )
-        metrics["train_samples"] = min(max_train_samples, len(train_dataset))
-
-        trainer.log_metrics("train", metrics)
-        trainer.save_metrics("train", metrics)
-        trainer.save_state()
 
 
 
 
-        # Evaluation
-        if training_args.do_eval:
-            logger.info("*** Evaluate ***")
 
-            metrics = trainer.evaluate()
 
-            max_eval_samples = data_args.max_eval_samples if data_args.max_eval_samples is not None else len(eval_dataset)
-            metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
-            try:
-                perplexity = math.exp(metrics["eval_loss"])
-            except OverflowError:
-                perplexity = float("inf")
-            metrics["perplexity"] = perplexity
 
-            trainer.log_metrics("eval", metrics)
-            trainer.save_metrics("eval", metrics)
-
-        logging.info("Starting training 4")
-
-        training_args.learning_rate = 1e-4/(2.6**4)
-        training_args.output_dir = "./tmp4/"
-
-        optimizer = transformers.optimization.Adafactor(model.parameters(), lr=training_args.learning_rate, scale_parameter=False, relative_step=False, warmup_init=False)
-        lr_scheduler = transformers.optimization.AdafactorSchedule(optimizer)
-
-        logging.info("-Training args", training_args)
-        trainer = Trainer(
-            model=model,
-            args=training_args,
-            train_dataset=train_dataset if training_args.do_train else None,
-            eval_dataset=eval_dataset if training_args.do_eval else None,
-            tokenizer=tokenizer,
-            # Data collator will default to DataCollatorWithPadding, so we change it.
-            data_collator=default_data_collator,
-            optimizers=(optimizer, lr_scheduler)
-        )
-
-        set_all_layer_status_model(divs, False)
-        freeze_group_model(divs, 0, True)
-        freeze_group_model(divs, 1, True)
-        freeze_group_model(divs, 2, True)
-        freeze_group_model(divs, 3, True)
-
-        train_result = trainer.train()
-        trainer.save_model()
-
-        metrics = train_result.metrics
-
-        max_train_samples = (
-            data_args.max_train_samples if data_args.max_train_samples is not None else len(train_dataset)
-        )
-        metrics["train_samples"] = min(max_train_samples, len(train_dataset))
-
-        trainer.log_metrics("train", metrics)
-        trainer.save_metrics("train", metrics)
-        trainer.save_state()
-
-        # Evaluation
-        if training_args.do_eval:
-            logger.info("*** Evaluate ***")
-
-            metrics = trainer.evaluate()
-
-            max_eval_samples = data_args.max_eval_samples if data_args.max_eval_samples is not None else len(eval_dataset)
-            metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
-            try:
-                perplexity = math.exp(metrics["eval_loss"])
-            except OverflowError:
-                perplexity = float("inf")
-            metrics["perplexity"] = perplexity
-
-            trainer.log_metrics("eval", metrics)
-            trainer.save_metrics("eval", metrics)
 
 
 
